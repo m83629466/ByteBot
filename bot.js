@@ -58,6 +58,7 @@ function createBot() {
     clearTimeout(connectTimeout);
     logVision(`✅ Bot conectado: ${bot.username}`);
 
+    // Movimentação aleatória
     if (moveInterval) clearInterval(moveInterval);
     moveInterval = setInterval(() => {
       if (!bot.entity) return;
@@ -72,6 +73,7 @@ function createBot() {
       setTimeout(() => bot.clearControlStates(), 1000);
     }, 8000);
 
+    // Atualiza posição e jogadores (para WebSocket)
     if (updateInterval) clearInterval(updateInterval);
     updateInterval = setInterval(() => {
       if (!bot.entity) return;
@@ -91,14 +93,8 @@ function createBot() {
       broadcast({ position, players });
     }, 1000);
 
-    if (botCheckInterval) clearInterval(botCheckInterval);
-    botCheckInterval = setInterval(() => {
-      if (bot && bot.isAlive) {
-        logVision(`✅ Bot está online: ${bot.username}`);
-      } else {
-        logVision('⚠️ Bot não está conectado.');
-      }
-    }, 5000);
+    // Verificação de status a cada 5 segundos
+    startBotCheck();
   });
 
   bot.on('chat', (username, msg) => {
@@ -129,6 +125,21 @@ function createBot() {
   });
 }
 
+// ========== CHECAGEM DE STATUS ==========
+function startBotCheck() {
+  if (botCheckInterval) clearInterval(botCheckInterval);
+  botCheckInterval = setInterval(() => {
+    if (bot && bot._client && bot._client.socket && bot._client.socket.readyState === 1) {
+      logVision(`✅ Bot está online: ${bot.username}`);
+    } else {
+      logVision('⚠️ Bot não está conectado, tentando reconectar...');
+      cleanupBot();
+      scheduleReconnect();
+    }
+  }, 5000);
+}
+
+// ========== LIMPEZA ==========
 function cleanupBot() {
   if (moveInterval) clearInterval(moveInterval);
   if (updateInterval) clearInterval(updateInterval);
@@ -140,6 +151,7 @@ function cleanupBot() {
   bot = null;
 }
 
+// ========== RECONEXÃO ==========
 function scheduleReconnect() {
   if (reconnectTimeout) return;
   logVision('🔄 Tentando reconectar em 10 segundos...');
