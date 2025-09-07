@@ -1,7 +1,10 @@
 const mineflayer = require('mineflayer');
+const http = require('http');
+
 const MC_HOST = 'ByteBot_.aternos.me';
 const MC_PORT = 59544;
 const VERSION = '1.12.2';
+const PORT = process.env.PORT || 8080; // porta do servidor HTTP
 
 let bot = null;
 let reconnectTimeout = null;
@@ -92,5 +95,13 @@ function scheduleReconnect() {
   }, 10000);
 }
 
-// Inicia o bot
-createBot();
+// Cria um servidor HTTP simples só para manter a porta aberta
+const server = http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('ByteBot está rodando sem interface.');
+});
+
+server.listen(PORT, () => {
+  console.log(`🌐 Servidor HTTP rodando: http://localhost:${PORT}`);
+  createBot();
+});
