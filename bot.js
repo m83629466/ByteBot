@@ -45,9 +45,10 @@ function createBot() {
     startBotCheck();
   });
 
+  bot.on('login', () => logVision('🔐 Bot logado com sucesso!'));
+
   bot.on('chat', (username, msg) => {
-    if (username !== bot.username)
-      logVision(`💬 ${username}: ${msg}`);
+    if (username !== bot.username) logVision(`💬 ${username}: ${msg}`);
   });
 
   ['end', 'kicked', 'error'].forEach(evt => {
@@ -55,15 +56,13 @@ function createBot() {
       let msg = '';
       if (evt === 'end') msg = '🔴 Bot desconectado';
       if (evt === 'kicked') msg = `🚫 Bot kickado: ${arg1}`;
-      if (evt === 'error') msg = `❌ Erro: ${arg1.message || arg1}`;
+      if (evt === 'error') msg = `❌ Erro: ${arg1?.message || arg1}`;
 
       logVision(msg);
       cleanupBot();
       scheduleReconnect();
     });
   });
-
-  bot.on('login', () => logVision('🔐 Bot logado com sucesso!'));
 }
 
 function startBotCheck() {
@@ -76,13 +75,21 @@ function startBotCheck() {
       cleanupBot();
       scheduleReconnect();
     }
-  }, 5000); // verifica a cada 5 segundos
+  }, 5000);
 }
 
 function cleanupBot() {
-  if (botCheckInterval) clearInterval(botCheckInterval);
-  if (connectTimeout) clearTimeout(connectTimeout);
-  try { if (bot) bot.quit(); } catch (_) {}
+  if (botCheckInterval) {
+    clearInterval(botCheckInterval);
+    botCheckInterval = null;
+  }
+  if (connectTimeout) {
+    clearTimeout(connectTimeout);
+    connectTimeout = null;
+  }
+  try {
+    if (bot) bot.quit();
+  } catch (_) {}
   bot = null;
 }
 
@@ -95,7 +102,7 @@ function scheduleReconnect() {
   }, 10000);
 }
 
-// Cria um servidor HTTP simples só para manter a porta aberta
+// Servidor HTTP simples só para manter a porta aberta
 const server = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('ByteBot está rodando sem interface.');
