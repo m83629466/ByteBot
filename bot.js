@@ -14,6 +14,7 @@ let reconnectTimeout = null;
 let moveInterval = null;
 let updateInterval = null;
 let connectTimeout = null;
+let botCheckInterval = null;
 
 // ========== LOG + BROADCAST ==========
 function logVision(text) {
@@ -89,6 +90,15 @@ function createBot() {
       }));
       broadcast({ position, players });
     }, 1000);
+
+    if (botCheckInterval) clearInterval(botCheckInterval);
+    botCheckInterval = setInterval(() => {
+      if (bot && bot.isAlive) {
+        logVision(`✅ Bot está online: ${bot.username}`);
+      } else {
+        logVision('⚠️ Bot não está conectado.');
+      }
+    }, 5000);
   });
 
   bot.on('chat', (username, msg) => {
@@ -122,6 +132,7 @@ function createBot() {
 function cleanupBot() {
   if (moveInterval) clearInterval(moveInterval);
   if (updateInterval) clearInterval(updateInterval);
+  if (botCheckInterval) clearInterval(botCheckInterval);
   if (connectTimeout) clearTimeout(connectTimeout);
   try {
     if (bot) bot.quit();
