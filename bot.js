@@ -1,114 +1,78 @@
 const mineflayer = require('mineflayer');
-const http = require('http');
 
-const MC_HOST = 'ByteBot_.aternos.me';
-const MC_PORT = 59544;
-const VERSION = '1.12.2';
-const PORT = process.env.PORT || 8080; // porta do servidor HTTP
+// ====== Configurações do servidor ======
+const HOST = 'ByteBot.aternos.me';
+const PORT = 59544;
 
-let bot = null;
-let reconnectTimeout = null;
-let botCheckInterval = null;
-let connectTimeout = null;
+// Nick aleatório
+const NICK = `ByteBot#${Math.floor(Math.random()*10000)}`;
 
-function logVision(text) {
-  const logLine = `[${new Date().toISOString()}] ${text}`;
-  console.log(logLine);
+// Criar bot
+const bot = mineflayer.createBot({
+  host: HOST,
+  port: PORT,
+  username: NICK
+});
+
+// Controle de movimento
+let moving = false;
+let lastX = null;
+let lastY = null;
+
+bot.once('spawn', () => {
+  console.log(`🤖 Bot ${NICK} entrou no servidor!`);
+  antiAFK();
+  monitorPosition();
+});
+
+// Função anti-AFK: movimenta aleatoriamente
+function antiAFK() {
+  setInterval(() => {
+    const directions = ['forward', 'back', 'left', 'right', 'jump'];
+    directions.forEach(dir => bot.setControlState(dir, Math.random() < 0.5));
+  }, 3000);
 }
 
-function createBot() {
-  if (bot) {
-    logVision('⚠️ Bot já está ativo.');
-    return;
-  }
+// Verificar posição e blocos à frente
+function monitorPosition() {
+  setInterval(() => {
+    const pos = bot.entity.position;
+    const block = bot.blockAt(bot.entity.position.offset(0, -1, 0));
 
-  const username = `ByteBot_${Math.floor(Math.random() * 9999)}`;
-  logVision(`🤖 Iniciando bot como ${username}...`);
-
-  bot = mineflayer.createBot({
-    host: MC_HOST,
-    port: MC_PORT,
-    username,
-    version: VERSION,
-    auth: 'offline',
-  });
-
-  connectTimeout = setTimeout(() => {
-    logVision('⏰ Timeout: conexão muito demorada.');
-    cleanupBot();
-    scheduleReconnect();
-  }, 15000);
-
-  bot.once('spawn', () => {
-    clearTimeout(connectTimeout);
-    logVision(`✅ Bot conectado: ${bot.username}`);
-    startBotCheck();
-  });
-
-  bot.on('login', () => logVision('🔐 Bot logado com sucesso!'));
-
-  bot.on('chat', (username, msg) => {
-    if (username !== bot.username) logVision(`💬 ${username}: ${msg}`);
-  });
-
-  ['end', 'kicked', 'error'].forEach(evt => {
-    bot.on(evt, (arg1) => {
-      let msg = '';
-      if (evt === 'end') msg = '🔴 Bot desconectado';
-      if (evt === 'kicked') msg = `🚫 Bot kickado: ${arg1}`;
-      if (evt === 'error') msg = `❌ Erro: ${arg1?.message || arg1}`;
-
-      logVision(msg);
-      cleanupBot();
-      scheduleReconnect();
-    });
-  });
-}
-
-function startBotCheck() {
-  if (botCheckInterval) clearInterval(botCheckInterval);
-  botCheckInterval = setInterval(() => {
-    if (bot && bot.connected) {
-      logVision(`✅ Bot está online: ${bot.username}`);
-    } else {
-      logVision('⚠️ Bot não está conectado, tentando reconectar...');
-      cleanupBot();
-      scheduleReconnect();
+    if (block && block.name === 'air') {
+      // pular se estiver no vazio
+      bot.setControlState('jump', true);
+    } else if (block && block.name === 'stone') {
+      // evita bloco preto (obstáculo)
+      bot.setControlState('forward', false);
+      bot.setControlState('left', Math.random() < 0.5);
+      bot.setControlState('right', Math.random() < 0.5);
     }
+
+    if (lastX !== null && lastY !== null) {
+      if (lastX === pos.x && lastY === pos.z) {
+        console.log(`⏸ Bot parado, tentando movimentar...`);
+        bot.setControlState('forward', true);
+      }
+    }
+
+    lastX = pos.x;
+    lastY = pos.z;
+
+    console.log(`📍 Posição: X=${pos.x.toFixed(1)}, Y=${pos.y.toFixed(1)}, Z=${pos.z.toFixed(1)}, Bloco abaixo: ${block ? block.name : 'none'}`);
   }, 5000);
 }
 
-function cleanupBot() {
-  if (botCheckInterval) {
-    clearInterval(botCheckInterval);
-    botCheckInterval = null;
-  }
-  if (connectTimeout) {
-    clearTimeout(connectTimeout);
-    connectTimeout = null;
-  }
-  try {
-    if (bot) bot.quit();
-  } catch (_) {}
-  bot = null;
-}
-
-function scheduleReconnect() {
-  if (reconnectTimeout) return;
-  logVision('🔄 Tentando reconectar em 10 segundos...');
-  reconnectTimeout = setTimeout(() => {
-    reconnectTimeout = null;
-    createBot();
-  }, 10000);
-}
-
-// Servidor HTTP simples só para manter a porta aberta
-const server = http.createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('ByteBot está rodando sem interface.');
+// Reconectar se cair do servidor
+bot.on('end', () => {
+  console.log('⚠️ Bot saiu do servidor. Tentando reconectar...');
+  setTimeout(() => {
+    mineflayer.createBot({
+      host: HOST,
+      port: PORT,
+      username: NICK
+    });
+  }, 5000);
 });
 
-server.listen(PORT, () => {
-  console.log(`🌐 Servidor HTTP rodando: http://localhost:${PORT}`);
-  createBot();
-});
+bot.on('error', err => console.log('❌ Erro do bot:', err));
