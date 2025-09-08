@@ -1,7 +1,7 @@
 const mineflayer = require('mineflayer');
 const http = require('http');
 
-const MC_HOST = 'ByteBot_.aternos.me';
+const MC_HOST = 'ByteBot.aternos.me';
 const MC_PORT = 59544;
 const VERSION = '1.12.2';
 const PORT = process.env.PORT || 8080; // porta do servidor HTTP
