@@ -75,7 +75,7 @@ function startBotCheck() {
       cleanupBot();
       scheduleReconnect();
     }
-  }, 5000);
+  }, 10000);
 }
 
 function cleanupBot() {
